@@ -1,0 +1,94 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Import libraries
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+# View results (all)
+comparison <- read.table("./comparison.csv", 
+                     head = TRUE, sep = ",")
+                                
+# View results (m1)
+simple1 <- read.table("simple1.csv", 
+                     head = TRUE, sep = ",")
+simple5 <- read.table("simple5.csv", 
+                     head = TRUE, sep = ",")
+simple6 <- read.table("simple6.csv", 
+                     head = TRUE, sep = ",")
+simple7 <- read.table("simple7.csv", 
+                     head = TRUE, sep = ",")
+simple8 <- read.table("simple8.csv", 
+                     head = TRUE, sep = ",")
+simple9 <- read.table("simple9.csv", 
+                     head = TRUE, sep = ",")
+
+
+# Modified Transcripts that differ between test and control datasets (unique)
+length(unique(comparison$geneID)) #8829
+
+
+# Number of genes modified in each individual dataset (unique)
+length(unique(simple1$geneID)) # 6223
+length(unique(simple5$geneID)) # 6843
+length(unique(simple6$geneID)) # 6479
+length(unique(simple7$geneID)) # 7010
+length(unique(simple8$geneID)) # 6023
+length(unique(simple9$geneID)) # 7971
+
+```
+
+```{r}
+# Number of genes present in at least two of the test datasets and none of the control
+# select gene ID interest and add data column with 1
+con_m1 <- dplyr::select(simple7, geneID)
+con_m1 <- distinct(con_m1)
+con_m1$data_m1 <- 1
+con_m2 <- dplyr::select(simple8, geneID)
+con_m2 <- distinct(con_m2)
+con_m2$data_m2 <- 1
+con_m3 <- dplyr::select(simple9, geneID)
+con_m3 <- distinct(con_m3)
+con_m3$data_m3 <- 1
+#join datasets, fill NA with 0 
+con <- merge(con_m1, con_m2, by = "geneID", all = TRUE)
+con <- merge(con, con_m3, by = "geneID", all = TRUE)
+con[is.na(con)] <- 0
+# sum data columns
+con$count <- rowSums(con[ ,2:4])
+# Numer of genes present in at least two of the test datasets
+nrow(con[con$count > 1, ]) # 7004
+# DF with genes that are present in at least 2 of the datasets
+con5 <- con %>% filter_at(vars(count), any_vars(. > 1))  
+
+# select gene ID interest and add data column with 1
+con_m4 <- dplyr::select(simple1, geneID)
+con_m4 <- distinct(con_m4)
+con_m4$data_m4 <- 1
+con_m5 <- dplyr::select(simple5, geneID)
+con_m5 <- distinct(con_m5)
+con_m5$data_m5 <- 1
+con_m6 <- dplyr::select(simple6, geneID)
+con_m6 <- distinct(con_m6)
+con_m6$data_m6 <- 1
+# full join datasets, fill NA with 0 
+con2 <- merge(con_m4, con_m5, by = "geneID", all = TRUE)
+con2 <- merge(con2, con_m6, by = "geneID", all = TRUE)
+con2[is.na(con2)] <- 0 #
+
+
+con6 <- merge (con5, con2, by = "geneID")
+length(unique(con6$geneID)) #6429
+
+#575 #genes present in 2 test datasets but none of the control (7004-6429)
+```
+
