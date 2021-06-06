@@ -1,0 +1,211 @@
+---
+title: "Assignment 4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("ggeasy")
+library("RColorBrewer")
+library("biomaRt")
+library("ggplot2")
+library("ggrepel")
+library("gridExtra")
+```
+
+
+```{r}
+### SET PARAMETERS ###
+### featureCounts -M -s2 -p -T4 -a #Keep all values
+setwd("~/Applied Sequencing/Assignment/Assignment 4/Feautrecounts") 
+Kallisto = read.table("outputKallisto.txt", header=TRUE)              # kallisto counts file
+Tophat <- read.table("featurecounts.txt", header=TRUE, row.names=1)[, c(6:11)]
+Tophat2 <- setNames(Tophat, c("LT34F","LT35F","LT36F","LT46F","LT47F","LT48F"))
+rownames(Tophat2) <- gsub("\\..*","",rownames(Tophat2))
+
+Tophat2 <- cbind(newColName = rownames(Tophat2), Tophat2)
+rownames(Tophat2) <- 1:nrow(Tophat2)
+
+Kallisto <- cbind(newColName = rownames(Kallisto), Kallisto)
+rownames(Kallisto) <- 1:nrow(Kallisto)
+
+total <- merge(Tophat2, Kallisto, by= "newColName")
+
+LT34 <- ggplot(total, aes(x = LT34, y = LT34F)) + geom_point() +
+  ggtitle("LT34") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT35 <- ggplot(total, aes(x = LT35, y = LT35F)) + geom_point() +
+  ggtitle("LT35") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT36 <- ggplot(total, aes(x = LT36, y = LT36F)) + geom_point() +
+  ggtitle("LT36") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT46 <- ggplot(total, aes(x = LT46, y = LT46F)) + geom_point() +
+  ggtitle("LT46") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT47 <- ggplot(total, aes(x = LT47, y = LT47F)) + geom_point() +
+  ggtitle("LT47") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT48 <- ggplot(total, aes(x = LT48, y = LT48F)) + geom_point() +
+  ggtitle("LT48") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+
+LT34
+LT35
+LT36
+LT46
+LT47
+LT48
+
+#Correlation
+cor(total$LT34, total$LT34F) 
+cor(total$LT35, total$LT35F) 
+cor(total$LT36, total$LT36F) 
+cor(total$LT46, total$LT46F) 
+cor(total$LT47, total$LT47F) 
+cor(total$LT48, total$LT48F) 
+
+```
+
+
+```{r}
+# featureCounts -M -s2 -p -O -T4 -a  #Keep all values
+Tophatf <- read.table("featurecountsf.txt", header=TRUE, row.names=1)[, c(6:11)]
+Tophatf <- setNames(Tophatf, c("LT34F","LT35F","LT36F","LT46F","LT47F","LT48F"))
+rownames(Tophatf) <- gsub("\\..*","",rownames(Tophatf))
+
+Tophatf <- cbind(newColName = rownames(Tophatf), Tophatf)
+rownames(Tophatf) <- 1:nrow(Tophatf)
+
+totalf <- merge(Tophatf, Kallisto, by= "newColName")
+
+LT34 <- ggplot(totalf, aes(x = LT34, y = LT34F)) + geom_point() +
+  ggtitle("LT34") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT35 <- ggplot(totalf, aes(x = LT35, y = LT35F)) + geom_point() +
+  ggtitle("LT35") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT36 <- ggplot(totalf, aes(x = LT36, y = LT36F)) + geom_point() +
+  ggtitle("LT36") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT46 <- ggplot(totalf, aes(x = LT46, y = LT46F)) + geom_point() +
+  ggtitle("LT46") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT47 <- ggplot(totalf, aes(x = LT47, y = LT47F)) + geom_point() +
+  ggtitle("LT47") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT48 <- ggplot(totalf, aes(x = LT48, y = LT48F)) + geom_point() +
+  ggtitle("LT48") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+
+LT34
+LT35
+LT36
+LT46
+LT47
+LT48
+
+#Correlation
+cor(totalf$LT34, totalf$LT34F) 
+cor(totalf$LT35, totalf$LT35F) 
+cor(totalf$LT36, totalf$LT36F) 
+cor(totalf$LT46, totalf$LT46F) 
+cor(totalf$LT47, totalf$LT47F)
+cor(totalf$LT48, totalf$LT48F) 
+
+```
+
+
+```{r}
+### SET PARAMETERS ###
+###featureCounts -M -s2 -p -T4 -a Remove all 0 counts
+
+Kallisto = read.table("outputKallisto.txt", header=TRUE)              # kallisto counts file
+Kal <- Kallisto[rowSums(Kallisto[])>0,] #19151
+
+Tophat <- read.table("featurecounts.txt", header=TRUE, row.names=1)[, c(6:11)]
+
+Tophat2 <- setNames(Tophat, c("LT34F","LT35F","LT36F","LT46F","LT47F","LT48F"))
+rownames(Tophat2) <- gsub("\\..*","",rownames(Tophat2))
+Top <- Tophat2[rowSums(Tophat2[])>0,] #27584
+
+Top <- cbind(newColName = rownames(Top), Top)
+rownames(Top) <- 1:nrow(Top)
+
+
+Kal <- cbind(newColName = rownames(Kal), Kal)
+rownames(Kal) <- 1:nrow(Kal)
+
+totalall <- merge(Top, Kal, by= "newColName") #16570
+
+LT34 <- ggplot(totalall, aes(x = LT34, y = LT34F)) + geom_point() +
+  ggtitle("LT34") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT35 <- ggplot(totalall, aes(x = LT35, y = LT35F)) + geom_point() +
+  ggtitle("LT35") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT36 <- ggplot(totalall, aes(x = LT36, y = LT36F)) + geom_point() +
+  ggtitle("LT36") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT46 <- ggplot(totalall, aes(x = LT46, y = LT46F)) + geom_point() +
+  ggtitle("LT46") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT47 <- ggplot(totalall, aes(x = LT47, y = LT47F)) + geom_point() +
+  ggtitle("LT47") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT48 <- ggplot(totalall, aes(x = LT48, y = LT48F)) + geom_point() +
+  ggtitle("LT48") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+
+LT34
+LT35
+LT36
+LT46
+LT47
+LT48
+
+#Correlation
+cor(totalall$LT34, totalall$LT34F) #0.3181531
+cor(totalall$LT35, totalall$LT35F) #0.3719511
+cor(totalall$LT36, totalall$LT36F) #0.4089149
+cor(totalall$LT46, totalall$LT46F) # 0.3597429
+cor(totalall$LT47, totalall$LT47F) #0.1867094
+cor(totalall$LT48, totalall$LT48F) #0.2622624
+
+```
+
+
+```{r}
+# featureCounts -M -s2 -p -O -T4 -a  #Remove all 0 counts
+Tophatf <- read.table("featurecountsf.txt", header=TRUE, row.names=1)[, c(6:11)]
+Tophatf <- setNames(Tophatf, c("LT34F","LT35F","LT36F","LT46F","LT47F","LT48F"))
+rownames(Tophatf) <- gsub("\\..*","",rownames(Tophatf))
+Topf <- Tophatf[rowSums(Tophatf[])>0,] #27584
+
+Topf <- cbind(newColName = rownames(Topf), Topf)
+rownames(Topf) <- 1:nrow(Topf)
+
+totalf2 <- merge(Topf, Kal, by= "newColName")
+
+LT34 <- ggplot(totalf2, aes(x = LT34, y = LT34F)) + geom_point() +
+  ggtitle("LT34") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT35 <- ggplot(totalf2, aes(x = LT35, y = LT35F)) + geom_point() +
+  ggtitle("LT35") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT36 <- ggplot(totalf2, aes(x = LT36, y = LT36F)) + geom_point() +
+  ggtitle("LT36") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT46 <- ggplot(totalf2, aes(x = LT46, y = LT46F)) + geom_point() +
+  ggtitle("LT46") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT47 <- ggplot(totalf2, aes(x = LT47, y = LT47F)) + geom_point() +
+  ggtitle("LT47") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+LT48 <- ggplot(totalf2, aes(x = LT48, y = LT48F)) + geom_point() +
+  ggtitle("LT48") + xlab("Gene Counts (transcriptome)") + ylab("Gene Counts (genome)") + ggeasy::easy_center_title()
+
+LT34
+LT35
+LT36
+LT46
+LT47
+LT48
+
+#Correlation
+cor(totalf2$LT34, totalf2$LT34F) #0.4400015
+cor(totalf2$LT35, totalf2$LT35F) #0.4725511
+cor(totalf2$LT36, totalf2$LT36F) #0.4889258
+cor(totalf2$LT46, totalf2$LT46F) # 0.4366038
+cor(totalf2$LT47, totalf2$LT47F) #0.3350903
+cor(totalf2$LT48, totalf2$LT48F) #0.3288122
+
+```
+
+```{r}
+totalall2 <- totalall2[-41,]
+```
+
+
+ENSG00000001626
+Have tried C
