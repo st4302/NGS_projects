@@ -1,0 +1,235 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(edgeR)
+library(data.table)
+library(dplyr)
+
+x <- read.table("outputKallisto.txt", header=TRUE)
+samples <- read.table("samples.txt", header=TRUE)
+group <- factor(c(1,1,1,2,2,2))
+Batch <- factor(c(1,2,3,1,2,3))
+y <- DGEList(counts=x,group=group)
+
+#keep <- rowSums(cpm(y)>1) >= 2  14632 genes 
+#y <- y[keep, , keep.lib.sizes=FALSE]
+
+#Did not prefilter because I did not prefilter deseq and the file is not that big
+
+# Normalization
+y <- calcNormFactors(y, method=("RLE"))
+#y <- calcNormFactors(y, method=("TMM")) #TMM normalization
+y$samples
+
+#Normalized counts can be extracted using the function cpm:
+
+#eff.lib.size <- y$samples$lib.size*y$samples$norm.factors
+norm_counts <- cpm(y)
+
+
+
+#An MDS plot shows the relative similarities of the six samples.
+plotMDS(y, col=rep(1:2, each=3))
+#The  treated samples tend to be below the mock samples for each time, suggesting a treatment effect within each time.
+
+#To examine further consistency of the three replicates, we compute predictive log2-foldchanges (logFC) for the treatment separately for the three times.
+design <- model.matrix(~Batch+Batch:group)
+logFC <- predFC(y,design,prior.count=1,dispersion=0.05)
+#The logFC at the three times are positively correlated with one another,
+cor(logFC[,4:6])
+
+#data.frame(Sample=colnames(y),Condition)
+
+#define design matrix based on the experimental design.test for differential expressions between  control and SiRNA samples within batches, i.e. adjusting for differences between batches. In statistical terms,this is an additive linear model. So the design matrix is created as:
+design <- model.matrix(~Batch+group)
+rownames(design) <- colnames(y)
+design
+
+
+#Estimate the genewise dispersion estimates over all genes, allowing for a possible abundance trend. The estimation is also robustified against potential outlier genes.
+y <- estimateDisp(y, design, robust=TRUE) #robust=TRUE
+y$common.dispersion #0.034
+plotBCV(y)
+
+
+
+#The QL dispersions can be estimated using the glmQLFit function, and then be visualized with the plotQLDisp function
+fit <- glmQLFit(y, design, robust=TRUE) 
+plotQLDisp(fit)
+
+
+#Now conduct QL F-tests for the siRNA effect and show the top genes. By default, the test is for the last coefficient in the design matrix, which in this case is the group(siRNA) effect
+#qlf <- glmQLFTest(fit) #Treatment effect
+qlf <- glmQLFTest(fit, coef = 2) #Batch effect
+topTags(qlf)
+
+#Here’s a closer look at the individual counts-per-million for the top genes. The top genes are very consistent across the three replicates:
+top <- rownames(topTags(qlf))
+cpm(y)[top,]
+
+
+#The total number of genes significantly up-regulated or down-regulated at 5% FDR is summarized as follows
+summary(decideTests(qlf))
+
+#We can plot all the logFCs against average count size, highlighting the DE genes: The blue lines indicate 2-fold up or down
+plotMD(qlf, main="edgeR")
+abline(h=c(-1,1), col="blue")
+
+#Convert results to a data frame
+etable <- topTags(qlf, n=nrow(y))$table
+etable <- etable[order(etable$FDR), ]
+head(etable)
+
+
+
+```
+
+
+```{r}
+### Differential analysis
+Ctrl_siRNA2<-etable
+head(`Ctrl_siRNA2`)
+dim(`Ctrl_siRNA2`)
+
+adj_p_val = 0.05
+abs_log2fc = 1
+
+
+Ctrl_siRNA_sig2 = etable[etable$FDR < adj_p_val & !is.na(etable$FDR) & abs(etable$logFC) >abs_log2fc,]
+head(`Ctrl_siRNA_sig2`)
+dim(`Ctrl_siRNA_sig2`)
+
+
+
+rna_df2<-as.data.frame(`Ctrl_siRNA2`)
+rna_df2$log10.pvalue<-(-1*log10(rna_df2$FDR))
+rna_df2$Significant.Gene<-"No"
+
+row_number<-which(rna_df2$FDR<adj_p_val & abs(rna_df2$logFC)>abs_log2fc)
+rna_df2$Significant.Gene[row_number]<-"Yes"
+rna_df2$Differential_Gene<-rna_df2$Significant.Gene
+rna_df2$Differential_Gene[which(rna_df2$FDR< adj_p_val & rna_df2$logFC> abs_log2fc)]<-"Up-Regulated"
+rna_df2$Differential_Gene[which(rna_df2$FDR< adj_p_val & rna_df2$logFC< -abs_log2fc)]<-"Down-Regulated"
+
+table(rna_df2$Differential_Gene)
+
+
+#Amount of upregulated and downregulated genes
+Up_DownEdgeR <- rna_df2[rna_df2$Differential_Gene == "Up-Regulated" | rna_df2$Differential_Gene == "Down-Regulated",] #686
+Up_DownEdgeR <-setDT(Up_DownEdgeR, keep.rownames = "Genes")
+
+
+#Intersect
+library(readr)
+Up_DownDeseq <- read_csv("Up_DownDeseq.csv")
+Common <- intersect(Up_DownDeseq$Genes, Up_DownEdgeR$Genes) #120
+
+
+
+#Venn diagram
+
+GroupA <- Up_DownDeseq$Genes
+GroupB <- Up_DownEdgeR$Genes
+input  <-list(GroupA,GroupB)
+
+VENN.LIST <- input
+venn.plot <- venn.diagram(VENN.LIST , NULL, fill=c("darkmagenta", "darkblue"), alpha=c(0.5,0.5), cex = 2, cat.fontface=4, category.names=c("Deseq", "EdgeR"), main="Venn Diagram")
+
+grid.draw(venn.plot)
+
+
+```
+
+```{r Volcano plot with ggplot2}
+library(ggplot2)
+library(ggrepel)
+#RNA volcano
+
+#make sure to adjust xlim and ylim based off of the data. Run hist(rna_df$log2FoldChange) and hist(rna_df$log10.pvalue) to get an idea
+
+# pick a set of genes to label:
+rna_df2$label<-"No"
+rna_df2$label[which(rna_df2$FDR<adj_p_val & abs(rna_df2$logFC)>abs_log2fc)]<-"Yes"
+
+# Here we add two further columns, the gene symbol (common name) and entrez ID - both of which may be useful downstream
+rna_df2$symbol <- mapIds(org.Hs.eg.db, keys=row.names(rna_df2), column="SYMBOL", keytype="ENSEMBL", multiVals="first") # MAPS GENE IDs
+rna_df2$entrez <- mapIds(org.Hs.eg.db, keys=row.names(rna_df2), column="ENTREZID", keytype="ENSEMBL", multiVals="first")
+
+#pdf("Volcano.pdf", width=8, height=4,useDingbats=FALSE)
+pRNA <- ggplot(rna_df2, aes(logFC, log10.pvalue))+
+  geom_point(aes(colour = Differential_Gene),size=1)+
+  scale_colour_manual(values=c("blue", "black","red"))+
+  xlim(-6,6)+
+  ylim(0,5)+
+  xlab(expression(paste(log[2], 'FC(Ctrl/siRNA)')))+
+  ylab(expression(paste(-log[10], '(Q-value)'))) +
+  theme_bw() + 
+  theme(panel.background = element_blank())+
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1))+
+
+  theme(text = element_text(size=10)) +
+  theme(plot.title = element_blank())+
+  theme(axis.text = element_text( color = "black", size = 10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), axis.line=element_line()) +
+  theme(legend.position="none")+
+  geom_vline(xintercept=-abs_log2fc,linetype="dotted")+
+  geom_vline(xintercept=abs_log2fc,linetype="dotted")+
+  geom_text_repel(
+    data = subset(rna_df2, label=="Yes"),
+    aes(label = rna_df2$symbol[which(label=="Yes")]),
+    size = 5,
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.5, "lines")
+  )
+pRNA
+
+#dev.off()
+
+```
+
+
+## Heatmap with DEGs
+```{r Heatmap}
+
+sig.genes<-rownames(`Ctrl_siRNA_sig2`)
+
+#extract raw counts for these genes:
+m<-match(sig.genes,rownames(norm_counts))
+de_norm_counts<-norm_counts[m,]
+
+
+
+library(pheatmap)
+library(RColorBrewer)
+
+
+sample<-rownames(samples)
+sample <- samples
+sample <- subset(samples, select = -c(1))
+sample <-sample %>% rename("condition" = "samples")
+rownames(sample)<-colnames(de_norm_counts)
+#sample$samples<-as.character(sample$condition)
+sample2<-sample
+sample2$samples[which(sample2$samples=="siRNA")]<-"#74c476"
+sample2$samples[which(sample2$samples=="Ctrl")]<-"#ec7014"
+sample3 = list(samples = c("siRNA"= "#74c476", "Ctrl"="#ec7014"))
+
+#pdf("HEATMAP.pdf", width=10, height=5,useDingbats=FALSE)
+pheatmap(de_norm_counts,scale = "row",show_rownames=FALSE,
+         colorRampPalette(rev(brewer.pal(n = 10, name ="RdBu")))(25),
+         clustering_method = "ward.D2",clustering_distance_cols ="euclidean",
+         annotation_col  = sample, annotation_colors = sample3[1])
+#dev.off()
+
+```
+
